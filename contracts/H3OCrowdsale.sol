@@ -13,6 +13,8 @@ contract H3OCrowdsale is WhitelistedCrowdsale, TimedCrowdsale, ETHUSD {
   //The Token beeing sold
   H3O public tokenReward;
 
+  uint256 public tokensLeft;
+
   // ICO Stage
   // ============
   enum CrowdsaleStage { Stage1, Stage2, Stage3, Stage4 }
@@ -30,6 +32,7 @@ contract H3OCrowdsale is WhitelistedCrowdsale, TimedCrowdsale, ETHUSD {
     Crowdsale(1, _wallet, _token) public {
       ethInCents = _initialEthUsdCentsPrice;
       tokenReward = H3O(addressOfTokenUsedAsReward);
+      tokensLeft = tokenReward.INITIAL_SUPPLY();
     }
   // =============
 
@@ -57,13 +60,13 @@ contract H3OCrowdsale is WhitelistedCrowdsale, TimedCrowdsale, ETHUSD {
 
       //Setting the current rate with oraclize and discounts
       if (stage == CrowdsaleStage.Stage1) {
-        setCurrentRate(((ethInCents.div(10)).mul(120)).div(100));//ETHUSD divided 0,7 USD 
+        setCurrentRate((ethInCents.mul(120)).div(1000));//ETHUSD divided 0,7 USD 
       } else if (stage == CrowdsaleStage.Stage2) {
-        setCurrentRate(((ethInCents.div(10)).mul(115)).div(100));//ETHUSD divided
+        setCurrentRate((ethInCents.mul(115)).div(1000));//ETHUSD divided
       } else if (stage == CrowdsaleStage.Stage3) {
-        setCurrentRate(((ethInCents.div(10)).mul(110)).div(100));//ETHUSD divided
+        setCurrentRate((ethInCents.mul(110)).div(1000));//ETHUSD divided
       } else if (stage == CrowdsaleStage.Stage4) {
-        setCurrentRate(((ethInCents.div(10)).mul(105)).div(100));//ETHUSD divided
+        setCurrentRate((ethInCents.mul(105)).div(1000));//ETHUSD divided
       }
   }
 
@@ -107,16 +110,34 @@ contract H3OCrowdsale is WhitelistedCrowdsale, TimedCrowdsale, ETHUSD {
     // Instead of minting new token transfer from
     // those assigned to the Crowdsale contract
     // token.mint(beneficiary, tokens);
-    require(tokenReward.transfer(tokenReward.owner(), _beneficiary, tokens));
+    require(tokenReward.transferFrom(tokenReward.owner(), _beneficiary, tokens));
 
     TokenPurchase(msg.sender, _beneficiary, weiAmount, tokens);
 
     _forwardFunds();
   }
 
+  function buyTokensOtherCurrencies(address _beneficiary, uint256 _amount) external onlyOwner {
+
+    _preValidatePurchase(_beneficiary, _amount * (10 ** uint256(tokenReward.decimals())));
+
+    require(tokenReward.transferFrom(tokenReward.owner(), _beneficiary, _amount * (10 ** uint256(tokenReward.decimals()))));
+
+    //Substrakt Tokens from the remaining tokens.
+    tokensLeft = tokensLeft.sub(_amount * (10 ** uint256(tokenReward.decimals())));
+
+    TokenPurchase(_beneficiary ,_beneficiary, _amount * (10 ** uint256(tokenReward.decimals())), _amount * (10 ** uint256(tokenReward.decimals())));
+  }
+
+  function endCrowdsale(address _wallet) external onlyOwner {
+    require(tokenReward.transferFrom(tokenReward.owner(), _wallet, tokensLeft));
+
+    TokenPurchase(_wallet, _wallet, tokensLeft, tokensLeft);
+  }
+
 
   // REMOVE THIS FUNCTION ONCE YOU ARE READY FOR PRODUCTION
   function hasEnded() public view returns (uint256) {
-    return ((ethInCents.div(10)).mul(120)).div(100);
+    return tokensLeft;
   }
 }
