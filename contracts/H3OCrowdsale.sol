@@ -131,7 +131,7 @@ contract H3OCrowdsale is WhitelistedCrowdsale, TimedCrowdsale, ETHUSD, Reentranc
 
 
   //A function to assign tokens to an address manually. It should be used for payments received in other currencies.
-  //_amount has to be in tokens without decimals, as those will be added in the first line of the function.
+  //@param _amount: has to be in H3O-tokens without decimals, as those will be added in the first line of the function.
   function buyTokensOtherCurrencies(address _beneficiary, uint256 _amount) external onlyOwner nonReentrant {
 
     //Add tokens decimals
