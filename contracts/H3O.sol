@@ -5,17 +5,16 @@ import "../node_modules/zeppelin-solidity/contracts/token/ERC20/StandardBurnable
 import "../node_modules/zeppelin-solidity/contracts/ownership/Ownable.sol";
 
 /**
- * @title SimpleToken
- * @dev Very simple ERC20 Token example, where all tokens are pre-assigned to the creator.
- * Note they can later distribute these tokens as they wish using `transfer` and other
- * `StandardToken` functions.
+ * @title H3O
+ * @dev all tokens are pre-assigned to the creator.
  */
 contract H3O is StandardBurnableToken, Ownable {
 
-  string public constant name = "H3O Token"; // solium-disable-line uppercase
-  string public constant symbol = "H3O"; // solium-disable-line uppercase
-  uint8 public constant decimals = 18; // solium-disable-line uppercase
+  string public constant name = "H3O Token";
+  string public constant symbol = "H3O"; 
+  uint8 public constant decimals = 18;
 
+  //fixed amount of tokens issued in the Crowdsale
   uint256 public constant INITIAL_SUPPLY = 1000000000 * (10 ** uint256(decimals));
 
   /**

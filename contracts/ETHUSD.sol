@@ -61,7 +61,7 @@ contract ETHUSD is usingOraclize {
 
         // For local Ethereum network, we need to supply our own OAR contract
         // address.
-        OAR = OraclizeAddrResolverI(0x1583A772402D7239A497c643AEa1e53A74f15836);
+        OAR = OraclizeAddrResolverI(0x4f95A4DceD8Beb5056fF1F0aa8dbE17DED99327c);
 
         update();
     }

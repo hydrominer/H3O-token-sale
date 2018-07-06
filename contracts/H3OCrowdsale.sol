@@ -1,19 +1,26 @@
 pragma solidity ^0.4.24;
 
 import './H3O.sol';
+import "./ETHUSD.sol";
 import '../node_modules/zeppelin-solidity/contracts/crowdsale/validation/WhitelistedCrowdsale.sol';
 import '../node_modules/zeppelin-solidity/contracts/crowdsale/validation/TimedCrowdsale.sol';
 import '../node_modules/zeppelin-solidity/contracts/math/SafeMath.sol';
-import "./ETHUSD.sol";
+import '../node_modules/zeppelin-solidity/contracts/ReentrancyGuard.sol';
 
-contract H3OCrowdsale is WhitelistedCrowdsale, TimedCrowdsale, ETHUSD {
+contract H3OCrowdsale is WhitelistedCrowdsale, TimedCrowdsale, ETHUSD, ReentrancyGuard {
 
   using SafeMath for uint256;
 
   //The Token beeing sold
   H3O public tokenReward;
 
+  //Amount of Tokens unsold
   uint256 public tokensLeft;
+
+  //Function to check how many tokens are left in the crowdsale
+  function getTokensLeft() public view returns (uint256) {
+    return tokensLeft;
+  }
 
   // ICO Stage
   // ============
@@ -59,14 +66,16 @@ contract H3OCrowdsale is WhitelistedCrowdsale, TimedCrowdsale, ETHUSD {
       stage = _stage;
 
       //Setting the current rate with oraclize and discounts
+      //One token is equal to 0,1 dollar
+      //The rest oft the equation is just a percentual equation of the Discount-stages
       if (stage == CrowdsaleStage.Stage1) {
-        setCurrentRate((ethInCents.mul(120)).div(1000));//ETHUSD divided 0,7 USD 
+        setCurrentRate((ethInCents.mul(120)).div(1000));
       } else if (stage == CrowdsaleStage.Stage2) {
-        setCurrentRate((ethInCents.mul(115)).div(1000));//ETHUSD divided
+        setCurrentRate((ethInCents.mul(115)).div(1000));
       } else if (stage == CrowdsaleStage.Stage3) {
-        setCurrentRate((ethInCents.mul(110)).div(1000));//ETHUSD divided
+        setCurrentRate((ethInCents.mul(110)).div(1000));
       } else if (stage == CrowdsaleStage.Stage4) {
-        setCurrentRate((ethInCents.mul(105)).div(1000));//ETHUSD divided
+        setCurrentRate((ethInCents.mul(105)).div(1000));
       }
   }
 
@@ -95,7 +104,8 @@ contract H3OCrowdsale is WhitelistedCrowdsale, TimedCrowdsale, ETHUSD {
       buyTokens(msg.sender);
   }
 
-  function buyTokens(address _beneficiary) public payable {
+  //Overwritten buyTokens function, which transfers tokens without minting new ones (fixed amount of tokens)
+  function buyTokens(address _beneficiary) public payable nonReentrant {
     require(_beneficiary != address(0));
 
     uint256 weiAmount = msg.value;
@@ -112,32 +122,40 @@ contract H3OCrowdsale is WhitelistedCrowdsale, TimedCrowdsale, ETHUSD {
     // token.mint(beneficiary, tokens);
     require(tokenReward.transferFrom(tokenReward.owner(), _beneficiary, tokens));
 
+    tokensLeft = tokensLeft.sub(tokens);
+
     TokenPurchase(msg.sender, _beneficiary, weiAmount, tokens);
 
     _forwardFunds();
   }
 
-  function buyTokensOtherCurrencies(address _beneficiary, uint256 _amount) external onlyOwner {
 
-    _preValidatePurchase(_beneficiary, _amount * (10 ** uint256(tokenReward.decimals())));
+  //A function to assign tokens to an address manually. It should be used for payments received in other currencies.
+  //_amount has to be in tokens without decimals, as those will be added in the first line of the function.
+  function buyTokensOtherCurrencies(address _beneficiary, uint256 _amount) external onlyOwner nonReentrant {
 
-    require(tokenReward.transferFrom(tokenReward.owner(), _beneficiary, _amount * (10 ** uint256(tokenReward.decimals()))));
+    //Add tokens decimals
+    uint256 tokens = _amount * (10 ** uint256(tokenReward.decimals()));
+
+    _preValidatePurchase(_beneficiary, tokens);
+
+    //transfering tokens from the crowdsale to beneficiary stated
+    require(tokenReward.transferFrom(tokenReward.owner(), _beneficiary, tokens));
 
     //Substrakt Tokens from the remaining tokens.
-    tokensLeft = tokensLeft.sub(_amount * (10 ** uint256(tokenReward.decimals())));
+    tokensLeft = tokensLeft.sub(tokens);
 
-    TokenPurchase(_beneficiary ,_beneficiary, _amount * (10 ** uint256(tokenReward.decimals())), _amount * (10 ** uint256(tokenReward.decimals())));
+    TokenPurchase(_beneficiary ,_beneficiary, tokens, tokens);
   }
 
-  function endCrowdsale(address _wallet) external onlyOwner {
+  //After the Crowdsale is over, this function can be called to transfer all unsold Tokens to a wallet
+  function endCrowdsale(address _wallet) external onlyOwner nonReentrant {
     require(tokenReward.transferFrom(tokenReward.owner(), _wallet, tokensLeft));
+
+    //Set tokensLeft to 0, signalising the end of the Crowdsale
+    tokensLeft = 0;
 
     TokenPurchase(_wallet, _wallet, tokensLeft, tokensLeft);
   }
 
-
-  // REMOVE THIS FUNCTION ONCE YOU ARE READY FOR PRODUCTION
-  function hasEnded() public view returns (uint256) {
-    return tokensLeft;
-  }
 }
